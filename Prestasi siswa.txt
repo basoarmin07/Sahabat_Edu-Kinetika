@@ -1,0 +1,355 @@
+<!-- ==========================================================================
+     KOMPONEN "PRESTASI BELAJAR" UNTUK dashboard.html (DASHBOARD SISWA)
+     Berisi: ringkasan jam belajar, grafik belajar, lencana prestasi,
+             dan umpan balik guru <-> siswa secara real-time.
+
+     Cara pasang:
+     1. Unggah file pelacak-belajar.js ke folder yang sama dengan dashboard.html.
+     2. Salin SEMUA kode di bawah ini dan tempel di dashboard.html, di tempat
+        bagian Prestasi ingin ditampilkan (misalnya setelah bagian hero/beranda).
+     Bagian lain di dashboard.html tidak perlu diubah.
+     ========================================================================== -->
+
+<style>
+  .pr-root { --pr-navy: #0f2a44; --pr-navy-2: #16395c; --pr-ink: #0f172a; --pr-muted: #64748b; --pr-line: #e2e8f0;
+    --pr-soft: #f1f5f9; --pr-sky: #38bdf8; --pr-sky-soft: #e0f2fe; --pr-amber: #f59e0b; --pr-amber-soft: #fef3c7;
+    --pr-green: #10b981; --pr-green-soft: #d1fae5; --pr-red: #ef4444;
+    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif; color: var(--pr-ink);
+    max-width: 1180px; margin: 48px auto; padding: 0 20px; }
+  .pr-root * { box-sizing: border-box; }
+  .pr-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+  .pr-eyebrow { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: #0369a1; background: var(--pr-sky-soft); padding: 6px 12px; border-radius: 999px; margin-bottom: 10px; }
+  .pr-head h2 { font-size: clamp(26px, 3.4vw, 38px); font-weight: 800; letter-spacing: -.02em; color: var(--pr-navy); margin: 0; line-height: 1.1; }
+  .pr-head p { margin: 8px 0 0; color: var(--pr-muted); font-size: 15px; }
+  .pr-live { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700; color: var(--pr-muted); background: #fff; border: 1px solid var(--pr-line); padding: 8px 14px; border-radius: 999px; }
+  .pr-live i { width: 8px; height: 8px; border-radius: 50%; background: #94a3b8; }
+  .pr-live.on i { background: var(--pr-green); box-shadow: 0 0 0 4px rgba(16, 185, 129, .18); animation: prPulse 1.6s infinite; }
+  @keyframes prPulse { 50% { box-shadow: 0 0 0 7px rgba(16, 185, 129, .05); } }
+
+  .pr-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
+  .pr-stat { background: #fff; border: 1px solid var(--pr-line); border-radius: 20px; padding: 16px 18px; }
+  .pr-stat .k { font-size: 11.5px; font-weight: 700; color: var(--pr-muted); text-transform: uppercase; letter-spacing: .06em; display: flex; align-items: center; gap: 6px; }
+  .pr-stat .v { font-size: 28px; font-weight: 800; color: var(--pr-navy); margin-top: 6px; letter-spacing: -.02em; }
+  .pr-stat .s { font-size: 12.5px; color: var(--pr-muted); margin-top: 2px; }
+  .pr-stat.dark { background: var(--pr-navy); border-color: var(--pr-navy); }
+  .pr-stat.dark .k, .pr-stat.dark .s { color: #bcd3ea; } .pr-stat.dark .v { color: #fff; }
+  .pr-bar { height: 6px; background: rgba(255, 255, 255, .18); border-radius: 99px; margin-top: 10px; overflow: hidden; }
+  .pr-bar i { display: block; height: 100%; width: 0; background: var(--pr-sky); border-radius: 99px; transition: width .6s; }
+
+  .pr-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; margin-bottom: 16px; }
+  .pr-card { background: #fff; border: 1px solid var(--pr-line); border-radius: 24px; overflow: hidden; display: flex; flex-direction: column; }
+  .pr-card-h { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 16px 20px; border-bottom: 1px solid var(--pr-line); flex-wrap: wrap; }
+  .pr-card-h h3 { margin: 0; font-size: 16px; font-weight: 800; color: var(--pr-navy); }
+  .pr-card-h small { display: block; font-size: 12px; color: var(--pr-muted); font-weight: 500; margin-top: 2px; }
+  .pr-card-b { padding: 16px 20px 20px; }
+  .pr-seg { display: inline-flex; background: var(--pr-soft); border-radius: 12px; padding: 3px; gap: 2px; }
+  .pr-seg button { border: 0; background: transparent; font: inherit; font-size: 12.5px; font-weight: 700; color: var(--pr-muted); padding: 7px 12px; border-radius: 9px; cursor: pointer; }
+  .pr-seg button[aria-pressed="true"] { background: var(--pr-navy); color: #fff; }
+  .pr-chart svg { width: 100%; height: auto; display: block; }
+  .pr-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--pr-muted); margin-top: 8px; }
+  .pr-legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .pr-legend i { width: 12px; height: 3px; border-radius: 2px; display: inline-block; }
+
+  .pr-chat { flex: 1; display: flex; flex-direction: column; min-height: 380px; }
+  .pr-thread { flex: 1; padding: 16px 18px; overflow-y: auto; max-height: 380px; display: flex; flex-direction: column; gap: 10px; background: #fbfdff; }
+  .pr-msg { max-width: 86%; padding: 10px 13px; border-radius: 16px; font-size: 14px; line-height: 1.55; white-space: pre-wrap; word-wrap: break-word; }
+  .pr-msg .meta { display: block; font-size: 11px; margin-bottom: 3px; font-weight: 700; }
+  .pr-msg .time { display: block; font-size: 10.5px; margin-top: 4px; opacity: .75; text-align: right; }
+  .pr-msg.guru { align-self: flex-start; background: #fff; border: 1px solid var(--pr-line); border-bottom-left-radius: 5px; }
+  .pr-msg.guru .meta { color: #0369a1; }
+  .pr-msg.guru.baru { border-color: var(--pr-sky); box-shadow: 0 0 0 3px var(--pr-sky-soft); }
+  .pr-msg.siswa { align-self: flex-end; background: var(--pr-navy); color: #fff; border-bottom-right-radius: 5px; }
+  .pr-msg.siswa .meta { color: #93c5fd; }
+  .pr-empty { margin: auto; text-align: center; color: var(--pr-muted); font-size: 13.5px; padding: 30px 10px; }
+  .pr-empty b { display: block; font-size: 30px; margin-bottom: 6px; }
+  .pr-compose { display: flex; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--pr-line); background: #fff; }
+  .pr-compose textarea { flex: 1; resize: none; height: 44px; max-height: 120px; border: 1.5px solid var(--pr-line); border-radius: 14px; padding: 11px 13px; font: inherit; font-size: 14px; outline: none; }
+  .pr-compose textarea:focus { border-color: var(--pr-navy-2); }
+  .pr-compose button { border: 0; background: var(--pr-navy); color: #fff; font: inherit; font-weight: 800; font-size: 14px; padding: 0 18px; border-radius: 14px; cursor: pointer; }
+  .pr-compose button:disabled { opacity: .5; cursor: default; }
+  .pr-count { background: var(--pr-red); color: #fff; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 99px; }
+
+  .pr-badges { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+  .pr-badge { border: 1px solid var(--pr-line); border-radius: 18px; padding: 14px; display: flex; gap: 12px; align-items: flex-start; background: #fff; transition: transform .15s; }
+  .pr-badge .ic { width: 46px; height: 46px; min-width: 46px; border-radius: 14px; display: grid; place-items: center; font-size: 23px; background: var(--pr-soft); filter: grayscale(1); opacity: .55; }
+  .pr-badge b { display: block; font-size: 13.5px; color: var(--pr-navy); }
+  .pr-badge span { display: block; font-size: 12px; color: var(--pr-muted); line-height: 1.45; margin-top: 2px; }
+  .pr-badge .pg { height: 5px; background: var(--pr-soft); border-radius: 99px; margin-top: 8px; overflow: hidden; }
+  .pr-badge .pg i { display: block; height: 100%; background: var(--pr-sky); border-radius: 99px; }
+  .pr-badge.got { border-color: #fcd34d; background: linear-gradient(135deg, #fffbeb, #fff); }
+  .pr-badge.got .ic { filter: none; opacity: 1; background: var(--pr-amber-soft); }
+  .pr-badge.got:hover { transform: translateY(-2px); }
+  .pr-toast { position: fixed; right: 20px; bottom: 90px; z-index: 9999; background: var(--pr-navy); color: #fff; padding: 12px 16px; border-radius: 16px; font-size: 13.5px; font-weight: 600; box-shadow: 0 12px 30px rgba(15, 42, 68, .3); max-width: 320px; transform: translateY(20px); opacity: 0; transition: .3s; pointer-events: none; }
+  .pr-toast.show { transform: none; opacity: 1; }
+  @media (max-width: 900px) { .pr-stats { grid-template-columns: repeat(2, 1fr); } .pr-grid { grid-template-columns: 1fr; } }
+</style>
+
+<section class="pr-root" id="prestasi">
+  <div class="pr-head">
+    <div>
+      <span class="pr-eyebrow">🏆 Prestasi Belajar</span>
+      <h2>Lihat perkembangan belajarmu.</h2>
+      <p>Jam belajar, grafik kemajuan, lencana, dan catatan dari gurumu ada di sini.</p>
+    </div>
+    <span class="pr-live" id="pr-live"><i></i><span>Menghubungkan…</span></span>
+  </div>
+
+  <div class="pr-stats">
+    <div class="pr-stat dark">
+      <div class="k">⏱ Belajar hari ini</div>
+      <div class="v" id="pr-today">0m</div>
+      <div class="s" id="pr-target">Target harian 60 menit</div>
+      <div class="pr-bar"><i id="pr-target-bar"></i></div>
+    </div>
+    <div class="pr-stat"><div class="k">📚 Total jam belajar</div><div class="v" id="pr-total">0m</div><div class="s" id="pr-avg">Rata-rata 7 hari: 0m</div></div>
+    <div class="pr-stat"><div class="k">🔥 Hari beruntun</div><div class="v" id="pr-streak">0</div><div class="s">hari belajar berturut-turut</div></div>
+    <div class="pr-stat"><div class="k">🎯 Rata-rata kuis</div><div class="v" id="pr-kuis">–</div><div class="s" id="pr-kuis-s">0 dari 4 kuis selesai</div></div>
+  </div>
+
+  <div class="pr-grid">
+    <div class="pr-card">
+      <div class="pr-card-h">
+        <div><h3>📈 Grafik Belajar</h3><small id="pr-chart-sub">Menit belajar 7 hari terakhir</small></div>
+        <div class="pr-seg" role="group" aria-label="Pilih grafik">
+          <button data-g="jam7" aria-pressed="true">7 hari</button>
+          <button data-g="jam30" aria-pressed="false">30 hari</button>
+          <button data-g="kuis" aria-pressed="false">Nilai kuis</button>
+        </div>
+      </div>
+      <div class="pr-card-b pr-chart"><div id="pr-chart"></div><div class="pr-legend" id="pr-legend"></div></div>
+    </div>
+
+    <div class="pr-card">
+      <div class="pr-card-h">
+        <div><h3>💬 Umpan Balik Guru</h3><small>Pesan masuk dan terkirim secara langsung</small></div>
+        <span class="pr-count" id="pr-unread" hidden>0</span>
+      </div>
+      <div class="pr-chat">
+        <div class="pr-thread" id="pr-thread"><div class="pr-empty"><b>💬</b>Memuat percakapan…</div></div>
+        <div class="pr-compose">
+          <textarea id="pr-text" placeholder="Tulis pertanyaan atau balasan untuk guru…" maxlength="1000"></textarea>
+          <button id="pr-send" disabled>Kirim</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pr-card">
+    <div class="pr-card-h"><div><h3>🏅 Lencana Prestasi</h3><small id="pr-badge-sub">0 lencana diraih</small></div></div>
+    <div class="pr-card-b"><div class="pr-badges" id="pr-badges"></div></div>
+  </div>
+</section>
+<div class="pr-toast" id="pr-toast"></div>
+
+<script type="module" src="pelacak-belajar.js"></script>
+<script type="module">
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyA_YUPPq0CZgNi5McaTx3-a8LOGW70zIzg",
+    authDomain: "starararrara.firebaseapp.com",
+    databaseURL: "https://starararrara-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "starararrara",
+    storageBucket: "starararrara.firebasestorage.app",
+    messagingSenderId: "1085300087665",
+    appId: "1:1085300087665:web:375eae85042f14ffa7f4d0"
+  };
+  const TARGET_MENIT = 60, KKM = 75;
+  const KUIS = [['kuis1', 'Kuis 1'], ['kuis2', 'Kuis 2'], ['kuis3', 'Kuis 3'], ['kuis4', 'Kuis 4']];
+  const LAB = ['surface', 'temp', 'conc', 'cat'];
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const key = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const durasi = (dtk) => { const m = Math.floor((dtk || 0) / 60); return m >= 60 ? `${Math.floor(m / 60)}j ${m % 60}m` : `${m}m`; };
+  const jam = (t) => t ? new Date(t).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+  const konteksLabel = (k) => !k || k === 'umum' ? 'Catatan umum' : k.startsWith('lkpd:') ? 'Catatan LKPD' : k.startsWith('kuis') ? 'Catatan kuis' : k;
+
+  const S = { harian: {}, progres: {}, kuis: {}, lab: {}, umpan: {}, grafik: 'jam7' };
+  let API = null, UID = null, pertamaUmpan = true;
+
+  function toast(t) { const el = $('#pr-toast'); el.textContent = t; el.classList.add('show'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 4000); }
+  function live(on, teks) { const el = $('#pr-live'); el.classList.toggle('on', on); el.querySelector('span').textContent = teks; }
+
+  /* ---------- hitungan ---------- */
+  function hari(n) { const out = []; const d = new Date(); d.setHours(12); for (let i = n - 1; i >= 0; i--) { const x = new Date(d); x.setDate(d.getDate() - i); out.push(x); } return out; }
+  function totalDetik() {
+    const sum = Object.values(S.harian).reduce((a, b) => a + (+b || 0), 0);
+    return Math.max(sum, +S.progres.jamBelajarDetik || 0);
+  }
+  function streakHari() {
+    let n = 0; const d = new Date();
+    if (!(S.harian[key(d)] >= 60)) d.setDate(d.getDate() - 1); // hari ini belum belajar → hitung dari kemarin
+    while (S.harian[key(d)] >= 60) { n++; d.setDate(d.getDate() - 1); }
+    return n;
+  }
+  const skorKuis = () => KUIS.map(([k]) => S.kuis[k]?.skor).filter(v => v != null);
+  const labSelesai = () => LAB.filter(id => (S.lab[id] || {}).status === 'selesai').length;
+
+  /* ---------- ringkasan ---------- */
+  function renderStats() {
+    const today = +S.harian[key(new Date())] || 0;
+    $('#pr-today').textContent = durasi(today);
+    const pct = Math.min(100, Math.round(today / 60 / TARGET_MENIT * 100));
+    $('#pr-target').textContent = `Target harian ${TARGET_MENIT} menit • ${pct}%`;
+    $('#pr-target-bar').style.width = pct + '%';
+    $('#pr-total').textContent = durasi(totalDetik());
+    const w = hari(7).map(d => +S.harian[key(d)] || 0);
+    $('#pr-avg').textContent = `Rata-rata 7 hari: ${durasi(w.reduce((a, b) => a + b, 0) / 7)}`;
+    $('#pr-streak').textContent = streakHari();
+    const sk = skorKuis();
+    $('#pr-kuis').textContent = sk.length ? (sk.reduce((a, b) => a + b, 0) / sk.length).toFixed(1).replace('.', ',') : '–';
+    $('#pr-kuis-s').textContent = `${sk.length} dari 4 kuis selesai • ${sk.filter(v => v >= KKM).length} tuntas`;
+  }
+
+  /* ---------- grafik ---------- */
+  function renderChart() {
+    const W = 640, H = 250, L = 40, R = 12, T = 18, B = 34;
+    const iw = W - L - R, ih = H - T - B;
+    let bars, labels, maxV, garis, satuan, warna, legend, sub;
+    if (S.grafik === 'kuis') {
+      bars = KUIS.map(([k]) => S.kuis[k]?.skor ?? null); labels = KUIS.map(([, n]) => n);
+      maxV = 100; garis = KKM; satuan = ''; sub = 'Skor terbaru setiap kuis (KKM 75)';
+      warna = bars.map(v => v == null ? '#e2e8f0' : v >= KKM ? '#10b981' : '#f59e0b');
+      legend = '<span><i style="background:#10b981"></i>Tuntas</span><span><i style="background:#f59e0b"></i>Belum tuntas</span><span><i style="background:#ef4444"></i>Garis KKM</span>';
+    } else {
+      const n = S.grafik === 'jam30' ? 30 : 7;
+      const ds = hari(n);
+      bars = ds.map(d => Math.round((+S.harian[key(d)] || 0) / 60));
+      labels = ds.map((d, i) => n === 7 ? d.toLocaleDateString('id-ID', { weekday: 'short' }) : (i % 5 === 4 || i === n - 1 ? d.getDate() + '/' + (d.getMonth() + 1) : ''));
+      maxV = Math.ceil(Math.max(TARGET_MENIT, ...bars) * 1.1 / 20) * 20; garis = TARGET_MENIT; satuan = 'm';
+      sub = `Menit belajar ${n} hari terakhir`;
+      warna = bars.map((v, i) => i === n - 1 ? '#38bdf8' : v >= TARGET_MENIT ? '#0f2a44' : '#94a3b8');
+      legend = '<span><i style="background:#38bdf8"></i>Hari ini</span><span><i style="background:#0f2a44"></i>Mencapai target</span><span><i style="background:#94a3b8"></i>Di bawah target</span><span><i style="background:#ef4444"></i>Target 60 menit</span>';
+    }
+    $('#pr-chart-sub').textContent = sub;
+    const n = bars.length, slot = iw / n, bw = Math.min(46, slot * .62);
+    const y = v => T + ih - (v / maxV) * ih;
+    let g = '';
+    for (let i = 0; i <= 4; i++) {
+      const v = maxV / 4 * i, yy = y(v);
+      g += `<line x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}" stroke="#eef2f7"/><text x="${L - 8}" y="${yy + 4}" font-size="10.5" fill="#94a3b8" text-anchor="end">${Math.round(v)}${satuan}</text>`;
+    }
+    bars.forEach((v, i) => {
+      const x = L + slot * i + (slot - bw) / 2, val = v ?? 0, yy = y(val), h = T + ih - yy;
+      g += `<rect x="${x}" y="${v == null ? T + ih - 4 : yy}" width="${bw}" height="${v == null ? 4 : Math.max(h, 2)}" rx="${Math.min(8, bw / 3)}" fill="${warna[i]}"><title>${labels[i] || ''}: ${v == null ? 'belum' : v + (satuan === 'm' ? ' menit' : '')}</title></rect>`;
+      if (n <= 7 && v != null) g += `<text x="${x + bw / 2}" y="${yy - 6}" font-size="11.5" font-weight="700" fill="#0f2a44" text-anchor="middle">${v}${satuan}</text>`;
+      if (labels[i]) g += `<text x="${x + bw / 2}" y="${H - 12}" font-size="11" fill="#64748b" text-anchor="middle">${labels[i]}</text>`;
+    });
+    g += `<line x1="${L}" x2="${W - R}" y1="${y(garis)}" y2="${y(garis)}" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="5 4"/>`;
+    $('#pr-chart').innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${sub}" font-family="inherit">${g}</svg>`;
+    $('#pr-legend').innerHTML = legend;
+  }
+
+  /* ---------- lencana ---------- */
+  function renderBadges() {
+    const menit = totalDetik() / 60, st = streakHari(), sk = skorKuis(), tuntas = sk.filter(v => v >= KKM).length;
+    const lab = labSelesai(), balas = Object.values(S.umpan).filter(m => m.dari === 'siswa').length;
+    const list = [
+      ['⏱', 'Langkah Pertama', 'Belajar total 10 menit', menit, 10],
+      ['📚', 'Pembelajar Tekun', 'Belajar total 1 jam', menit, 60],
+      ['🏃', 'Maraton Kinetika', 'Belajar total 5 jam', menit, 300],
+      ['🔥', 'Konsisten', 'Belajar 3 hari berturut-turut', st, 3],
+      ['🌟', 'Disiplin Seminggu', 'Belajar 7 hari berturut-turut', st, 7],
+      ['🧪', 'Peneliti Muda', 'Selesaikan 1 percobaan lab', lab, 1],
+      ['🔬', 'Ahli Laboratorium', 'Selesaikan keempat percobaan lab', lab, 4],
+      ['🎯', 'Tuntas Pertama', 'Capai KKM di 1 kuis', tuntas, 1],
+      ['🏆', 'Juara Kuis', 'Capai KKM di keempat kuis', tuntas, 4],
+      ['💯', 'Nilai Sempurna', 'Dapatkan skor 100 di sebuah kuis', sk.filter(v => v === 100).length, 1],
+      ['💬', 'Aktif Bertanya', 'Kirim pesan ke guru', balas, 1]
+    ];
+    const got = list.filter(b => b[3] >= b[4]).length;
+    $('#pr-badge-sub').textContent = `${got} dari ${list.length} lencana diraih`;
+    $('#pr-badges').innerHTML = list.map(([ic, n, d, v, t]) => {
+      const ok = v >= t, p = Math.min(100, v / t * 100);
+      return `<div class="pr-badge ${ok ? 'got' : ''}"><div class="ic">${ic}</div><div style="flex:1"><b>${n}</b><span>${ok ? '✔ Diraih' : d}</span>${ok ? '' : `<div class="pg"><i style="width:${p}%"></i></div>`}</div></div>`;
+    }).join('');
+  }
+
+  /* ---------- umpan balik ---------- */
+  function renderUmpan() {
+    const list = Object.entries(S.umpan).map(([id, m]) => ({ id, ...m })).sort((a, b) => (a.waktu || 0) - (b.waktu || 0));
+    const th = $('#pr-thread');
+    const diBawah = th.scrollHeight - th.scrollTop - th.clientHeight < 40;
+    th.innerHTML = list.length ? list.map(m => m.dari === 'siswa'
+      ? `<div class="pr-msg siswa"><span class="meta">Kamu</span>${esc(m.teks)}<span class="time">${jam(m.waktu)}${m.dibaca ? ' • ✓ dibaca guru' : ''}</span></div>`
+      : `<div class="pr-msg guru ${m.dibaca ? '' : 'baru'}"><span class="meta">👩‍🏫 Guru • ${esc(konteksLabel(m.konteks))}</span>${esc(m.teks)}<span class="time">${jam(m.waktu)}</span></div>`).join('')
+      : '<div class="pr-empty"><b>💬</b>Belum ada pesan.<br>Tulis pertanyaan untuk gurumu di bawah.</div>';
+    if (diBawah || pertamaUmpan) th.scrollTop = th.scrollHeight;
+    const belum = list.filter(m => m.dari !== 'siswa' && !m.dibaca);
+    const c = $('#pr-unread'); c.hidden = !belum.length; c.textContent = `${belum.length} baru`;
+    return belum;
+  }
+  // tandai pesan guru sebagai dibaca ketika kotak umpan balik terlihat di layar
+  let terlihat = false;
+  new IntersectionObserver(es => { terlihat = es.some(e => e.isIntersecting); if (terlihat) tandaiDibaca(); }, { threshold: .3 }).observe(document.getElementById('pr-thread'));
+  function tandaiDibaca() {
+    if (!API || !UID || !terlihat || document.visibilityState !== 'visible') return;
+    const up = {};
+    Object.entries(S.umpan).forEach(([id, m]) => { if (m.dari !== 'siswa' && !m.dibaca) up[`${id}/dibaca`] = true; });
+    if (Object.keys(up).length) API.D.update(API.D.ref(API.db, `umpanBalik/${UID}`), up).catch(() => { });
+  }
+
+  async function kirim() {
+    const ta = $('#pr-text'), teks = ta.value.trim();
+    if (!teks || !API || !UID) return;
+    const btn = $('#pr-send'); btn.disabled = true;
+    try {
+      const { D, db } = API;
+      await D.set(D.push(D.ref(db, `umpanBalik/${UID}`)), { teks, waktu: D.serverTimestamp(), konteks: 'umum', dari: 'siswa', dibaca: false });
+      D.set(D.push(D.ref(db, 'aktivitas')), { uid: UID, jenis: 'umpan', pesan: 'mengirim pesan ke guru', waktu: D.serverTimestamp() }).catch(() => { });
+      ta.value = '';
+    } catch (e) { toast('Pesan gagal terkirim. Periksa koneksi internet.'); }
+    btn.disabled = !API;
+  }
+
+  function renderAll() { renderStats(); renderChart(); renderBadges(); }
+
+  /* ---------- event ---------- */
+  document.querySelectorAll('#prestasi [data-g]').forEach(b => b.addEventListener('click', () => {
+    S.grafik = b.dataset.g;
+    document.querySelectorAll('#prestasi [data-g]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    renderChart();
+  }));
+  $('#pr-send').addEventListener('click', kirim);
+  $('#pr-text').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); kirim(); } });
+  document.addEventListener('visibilitychange', tandaiDibaca);
+  addEventListener('ek-belajar', e => { const k = key(new Date()); S.harian[k] = (+S.harian[k] || 0) + e.detail.detik; renderAll(); });
+  window.__prestasiDemo = (data) => { Object.assign(S, data); renderAll(); renderUmpan(); }; // untuk uji tampilan
+
+  renderAll();
+
+  /* ---------- koneksi Firebase (real-time) ---------- */
+  try {
+    const V = '10.12.2';
+    const APP = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-app.js`);
+    const A = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-auth.js`);
+    const D = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-database.js`);
+    const app = APP.getApps().length ? APP.getApp() : APP.initializeApp(FIREBASE_CONFIG);
+    const db = D.getDatabase(app);
+    D.onValue(D.ref(db, '.info/connected'), s => live(!!s.val() && !!UID, s.val() ? (UID ? 'Terhubung langsung' : 'Belum masuk') : 'Menyambung ulang…'));
+    A.onAuthStateChanged(A.getAuth(app), (user) => {
+      if (!user) {
+        live(false, 'Belum masuk');
+        $('#pr-thread').innerHTML = '<div class="pr-empty"><b>🔒</b>Masuk dulu untuk melihat prestasi dan pesan dari guru.<br><a href="loging.html" style="color:#0f2a44;font-weight:800">Masuk sekarang</a></div>';
+        return;
+      }
+      UID = user.uid; API = { D, db };
+      $('#pr-send').disabled = false;
+      live(true, 'Terhubung langsung');
+      const dengar = (path, fn) => D.onValue(D.ref(db, path), s => { fn(s.val() || {}); }, err => console.warn(path, err));
+      dengar(`belajarHarian/${UID}`, v => { S.harian = v; renderAll(); });
+      dengar(`progres_siswa/${UID}`, v => { S.progres = v; renderAll(); });
+      dengar(`kuis/${UID}`, v => { S.kuis = v; renderAll(); });
+      dengar(`lab/${UID}`, v => { S.lab = v; renderAll(); });
+      dengar(`umpanBalik/${UID}`, v => {
+        const lama = new Set(Object.keys(S.umpan));
+        S.umpan = v;
+        const baru = Object.entries(v).filter(([id, m]) => !lama.has(id) && m.dari !== 'siswa');
+        if (!pertamaUmpan && baru.length) toast('💬 Pesan baru dari guru: ' + String(baru[baru.length - 1][1].teks).slice(0, 80));
+        renderUmpan(); renderBadges(); tandaiDibaca();
+        pertamaUmpan = false;
+      });
+    });
+  } catch (e) {
+    live(false, 'Tidak terhubung');
+    $('#pr-thread').innerHTML = '<div class="pr-empty"><b>📡</b>Tidak dapat terhubung ke server.</div>';
+  }
+</script>
